@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sesten Yazıya</title>
+<style>
+:root{--bg:#eef1f4;--panel:#fff;--ink:#16202a;--mute:#5d6b78;--line:#d3dae1;--accent:#1d5fd1;--rec:#d6342b}
+@media (prefers-color-scheme:dark){:root{--bg:#10161c;--panel:#18212a;--ink:#e8edf2;--mute:#97a4b1;--line:#2b3744;--accent:#5b9bff;--rec:#ff6a5f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Segoe UI",system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:32px 18px 60px}
+h1{font-size:1.9rem;margin:0 0 4px;letter-spacing:-.02em}
+p.sub{margin:0 0 24px;color:var(--mute)}
+.tabs{display:flex;gap:8px;margin-bottom:16px}
+.tabs button{flex:1;padding:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;font:inherit;cursor:pointer}
+.tabs button[aria-selected=true]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:600}
+section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+button.main{background:var(--accent);color:#fff;border:0;border-radius:999px;padding:12px 22px;font:inherit;font-weight:600;cursor:pointer}
+button.main.on{background:var(--rec)}
+button.sec{background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:10px 16px;font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.5;cursor:not-allowed}
+textarea{width:100%;min-height:220px;margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical}
+.status{color:var(--mute);font-size:.92rem;margin-top:10px;min-height:1.4em}
+progress{width:100%;margin-top:10px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <h1>Sesten Yazıya</h1>
+  <p class="sub">Konuş ya da ses dosyası yükle, metne dönüşsün. Her şey tarayıcında çalışır; ses kimseye gönderilmez.</p>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" id="t1" aria-selected="true">Canlı konuşma</button>
+    <button role="tab" id="t2" aria-selected="false">Dosya yükle</button>
+  </div>
+
+  <section id="live">
+    <div class="row">
+      <button class="main" id="mic">Kaydı başlat</button>
+      <label>Dil:
+        <select id="lang"><option value="tr-TR">Türkçe</option><option value="en-US">English</option><option value="de-DE">Deutsch</option></select>
+      </label>
+    </div>
+    <div class="status" id="liveStatus">Chrome, Edge veya Safari gerekir.</div>
+  </section>
+
+  <section id="file" hidden>
+    <div class="row">
+      <input type="file" id="audio" accept="audio/*,video/*">
+      <button class="main" id="go" disabled>Yazıya çevir</button>
+    </div>
+    <progress id="prog" max="100" value="0" hidden></progress>
+    <div class="status" id="fileStatus">İlk kullanımda yaklaşık 80 MB’lık model indirilir, sonra önbellekten açılır.</div>
+  </section>
+
+  <textarea id="out" placeholder="Metin burada görünecek…" aria-label="Çıktı metni"></textarea>
+  <div class="row" style="margin-top:12px">
+    <button class="sec" id="copy">Kopyala</button>
+    <button class="sec" id="save">.txt indir</button>
+    <button class="sec" id="clear">Temizle</button>
+  </div>
+</main>
+
+<script type="module">
+const $ = id => document.getElementById(id);
+const out = $("out");
+
+// Sekmeler
+function tab(n){
+  $("live").hidden = n !== 1; $("file").hidden = n !== 2;
+  $("t1").setAttribute("aria-selected", n === 1); $("t2").setAttribute("aria-selected", n === 2);
+}
+$("t1").onclick = () => tab(1); $("t2").onclick = () => tab(2);
+
+// --- Canlı konuşma (Web Speech API) ---
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, running = false, finalText = "";
+if (!SR) { $("mic").disabled = true; $("liveStatus").textContent = "Bu tarayıcı canlı tanımayı desteklemiyor. “Dosya yükle” sekmesini kullan."; }
+$("mic").onclick = () => {
+  if (running) { running = false; rec.stop(); return; }
+  finalText = out.value ? out.value.trimEnd() + " " : "";
+  rec = new SR(); rec.lang = $("lang").value; rec.continuous = true; rec.interimResults = true;
+  rec.onresult = e => {
+    let interim = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) finalText += t + " "; else interim += t;
+    }
+    out.value = finalText + interim;
+  };
+  rec.onerror = e => { $("liveStatus").textContent = e.error === "not-allowed" ? "Mikrofon izni verilmedi." : "Hata: " + e.error; };
+  rec.onend = () => { if (running) rec.start(); else { $("mic").textContent = "Kaydı başlat"; $("mic").classList.remove("on"); $("liveStatus").textContent = "Durdu."; } };
+  running = true; rec.start();
+  $("mic").textContent = "Kaydı durdur"; $("mic").classList.add("on"); $("liveStatus").textContent = "Dinliyorum…";
+};
+
+// --- Dosyadan (Whisper, tarayıcıda) ---
+let transcriber = null;
+$("audio").onchange = () => { $("go").disabled = !$("audio").files.length; };
+$("go").onclick = async () => {
+  const f = $("audio").files[0]; if (!f) return;
+  $("go").disabled = true; $("prog").hidden = false; $("prog").value = 0;
+  try {
+    if (!transcriber) {
+      $("fileStatus").textContent = "Model yükleniyor…";
+      const { pipeline } = await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2");
+      transcriber = await pipeline("automatic-speech-recognition", "Xenova/whisper-base", {
+        progress_callback: p => { if (p.status === "progress") $("prog").value = p.progress; }
+      });
+    }
+    $("prog").hidden = true;
+    $("fileStatus").textContent = "Ses çözülüyor…";
+    const ctx = new AudioContext({ sampleRate: 16000 });
+    const buf = await ctx.decodeAudioData(await f.arrayBuffer());
+    const data = buf.getChannelData(0);
+    $("fileStatus").textContent = "Yazıya çevriliyor, uzun dosyalarda biraz sürebilir…";
+    const r = await transcriber(data, { language: "turkish", task: "transcribe", chunk_length_s: 30, stride_length_s: 5 });
+    out.value = (out.value ? out.value.trimEnd() + "\n\n" : "") + r.text.trim();
+    $("fileStatus").textContent = "Bitti.";
+  } catch (err) {
+    console.error(err);
+    $("fileStatus").textContent = "Hata: " + err.message;
+  }
+  $("go").disabled = false; $("prog").hidden = true;
+};
+
+// --- Çıktı düğmeleri ---
+$("copy").onclick = async () => { await navigator.clipboard.writeText(out.value); $("copy").textContent = "Kopyalandı"; setTimeout(() => $("copy").textContent = "Kopyala", 1500); };
+$("save").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([out.value], { type: "text/plain;charset=utf-8" }));
+  a.download = "metin.txt"; a.click(); URL.revokeObjectURL(a.href);
+};
+$("clear").onclick = () => { out.value = ""; finalText = ""; };
+</script>
+</body>
+</html>
