@@ -9,8 +9,9 @@
 @media (prefers-color-scheme:dark){:root{--bg:#10161c;--panel:#18212a;--ink:#e8edf2;--mute:#97a4b1;--line:#2b3744;--accent:#5b9bff;--rec:#ff6a5f}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Segoe UI",system-ui,sans-serif}
-main{max-width:720px;margin:0 auto;padding:32px 18px 60px}
+main{max-width:760px;margin:0 auto;padding:32px 18px 60px}
 h1{font-size:1.9rem;margin:0 0 4px;letter-spacing:-.02em}
+h2{font-size:1.05rem;margin:22px 0 6px}
 p.sub{margin:0 0 24px;color:var(--mute)}
 .tabs{display:flex;gap:8px;margin-bottom:16px}
 .tabs button{flex:1;padding:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;font:inherit;cursor:pointer}
@@ -20,10 +21,12 @@ section{background:var(--panel);border:1px solid var(--line);border-radius:14px;
 button.main{background:var(--accent);color:#fff;border:0;border-radius:999px;padding:12px 22px;font:inherit;font-weight:600;cursor:pointer}
 button.main.on{background:var(--rec)}
 button.sec{background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:10px 16px;font:inherit;cursor:pointer}
-button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 button:disabled{opacity:.5;cursor:not-allowed}
-textarea{width:100%;min-height:220px;margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical}
+input[type=password]{flex:1;min-width:200px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{width:100%;min-height:200px;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical}
 .status{color:var(--mute);font-size:.92rem;margin-top:10px;min-height:1.4em}
+.hint{color:var(--mute);font-size:.88rem;margin:6px 0 0}
 progress{width:100%;margin-top:10px}
 [hidden]{display:none!important}
 </style>
@@ -31,7 +34,13 @@ progress{width:100%;margin-top:10px}
 <body>
 <main>
   <h1>Sesten Yazıya</h1>
-  <p class="sub">Konuş ya da ses dosyası yükle, metne dönüşsün. Her şey tarayıcında çalışır; ses kimseye gönderilmez.</p>
+  <p class="sub">Konuş ya da ses dosyası yükle, metne dönüşsün. Ses çözme tarayıcında çalışır; ses kimseye gönderilmez.</p>
+
+  <section>
+    <label for="ctx"><strong>Kayıt ne hakkında?</strong> (isteğe bağlı)</label>
+    <textarea id="ctx" style="min-height:70px;margin-top:8px" placeholder="Örn: Pazarlama ekibinin haftalık toplantısı. Katılanlar: Ayşe, Mehmet. Konu: Instagram kampanyası ve bütçe."></textarea>
+    <p class="hint">Yapay zekayla düzeltme sırasında isimleri, terimleri ve konuyu doğru yazmak için kullanılır.</p>
+  </section>
 
   <div class="tabs" role="tablist">
     <button role="tab" id="t1" aria-selected="true">Canlı konuşma</button>
@@ -52,31 +61,52 @@ progress{width:100%;margin-top:10px}
     <div class="row">
       <input type="file" id="audio" accept="audio/*,video/*">
       <button class="main" id="go" disabled>Yazıya çevir</button>
+      <label>Model:
+        <select id="model"><option value="auto">Otomatik</option><option value="base">Hızlı (base)</option><option value="small">Daha doğru (small)</option></select>
+      </label>
+      <button class="sec" id="stop" hidden>Durdur</button>
     </div>
+    <label style="display:block;margin-top:10px"><input type="checkbox" id="ts" checked> Her bölümün başına zaman damgası ekle</label>
     <progress id="prog" max="100" value="0" hidden></progress>
-    <div class="status" id="fileStatus">İlk kullanımda yaklaşık 80 MB’lık model indirilir, sonra önbellekten açılır.</div>
+    <div class="status" id="fileStatus">İlk kullanımda model indirilir (80 ile 250 MB), sonra önbellekten açılır.</div>
   </section>
 
-  <textarea id="out" placeholder="Metin burada görünecek…" aria-label="Çıktı metni"></textarea>
+  <h2>Ham metin</h2>
+  <textarea id="out" placeholder="Metin burada görünecek…" aria-label="Ham metin"></textarea>
   <div class="row" style="margin-top:12px">
     <button class="sec" id="copy">Kopyala</button>
     <button class="sec" id="save">.txt indir</button>
     <button class="sec" id="clear">Temizle</button>
   </div>
+
+  <section style="margin-top:24px">
+    <h2 style="margin-top:0">Yapay zekayla düzelt (isteğe bağlı)</h2>
+    <p class="hint">Claude, ham metni bağlama bakarak düzeltir: noktalama, yanlış duyulan kelimeler, dağınık cümleler. Bunun için kendi Anthropic API anahtarın gerekir. Anahtar sadece bu tarayıcıda durur ve doğrudan Anthropic’e gönderilir. Metin Anthropic’e gittiği için gizli içerikte kullanma. Kullanım ücretlidir.</p>
+    <div class="row" style="margin-top:10px">
+      <input type="password" id="key" placeholder="sk-ant-..." autocomplete="off" aria-label="Anthropic API anahtarı">
+      <button class="main" id="fix">Düzelt</button>
+    </div>
+    <div class="status" id="fixStatus"></div>
+    <textarea id="fixed" placeholder="Düzeltilmiş metin burada görünecek…" aria-label="Düzeltilmiş metin" style="margin-top:10px"></textarea>
+    <div class="row" style="margin-top:12px">
+      <button class="sec" id="copy2">Kopyala</button>
+      <button class="sec" id="save2">.txt indir</button>
+    </div>
+  </section>
 </main>
 
 <script type="module">
 const $ = id => document.getElementById(id);
 const out = $("out");
+const fmt = s => { s = Math.max(0, Math.round(s)); return Math.floor(s/60) + " dk " + String(s%60).padStart(2,"0") + " sn"; };
 
-// Sekmeler
 function tab(n){
   $("live").hidden = n !== 1; $("file").hidden = n !== 2;
   $("t1").setAttribute("aria-selected", n === 1); $("t2").setAttribute("aria-selected", n === 2);
 }
 $("t1").onclick = () => tab(1); $("t2").onclick = () => tab(2);
 
-// --- Canlı konuşma (Web Speech API) ---
+// --- Canlı konuşma ---
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let rec = null, running = false, finalText = "";
 if (!SR) { $("mic").disabled = true; $("liveStatus").textContent = "Bu tarayıcı canlı tanımayı desteklemiyor. “Dosya yükle” sekmesini kullan."; }
@@ -99,43 +129,153 @@ $("mic").onclick = () => {
 };
 
 // --- Dosyadan (Whisper, tarayıcıda) ---
-let transcriber = null;
+let transcriber = null, cancel = false;
 $("audio").onchange = () => { $("go").disabled = !$("audio").files.length; };
+$("stop").onclick = () => { cancel = true; $("fileStatus").textContent = "Durduruluyor…"; };
+
+async function loadModel(choice){
+  const { pipeline } = await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2");
+  const cb = p => { if (p.status === "progress") { $("prog").hidden = false; $("prog").value = p.progress; } };
+  const want = choice === "auto" ? (navigator.gpu ? "small" : "base") : choice;
+  if (navigator.gpu) {
+    try {
+      $("fileStatus").textContent = `Ekran kartı modu: ${want} modeli yükleniyor…`;
+      return { key: choice, t: await pipeline("automatic-speech-recognition", "Xenova/whisper-" + want, {
+        device: "webgpu", dtype: { encoder_model: "fp32", decoder_model_merged: "q4" }, progress_callback: cb }) };
+    } catch (e) { console.warn("WebGPU olmadı, işlemciye dönülüyor", e); }
+  }
+  $("fileStatus").textContent = `İşlemci modu: ${want} modeli yükleniyor (yavaş olabilir)…`;
+  return { key: choice, t: await pipeline("automatic-speech-recognition", "Xenova/whisper-" + want, { progress_callback: cb }) };
+}
+
+// Tekrar döngülerini temizler: aynı 1-6 kelimelik öbek 3+ kez üst üste gelirse [anlaşılmıyor] ile değiştirir
+function dedupe(t){
+  const w = t.split(/\s+/).filter(Boolean), norm = x => x.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ""), res = [];
+  let i = 0;
+  while (i < w.length) {
+    let hit = false;
+    for (let n = 1; n <= 6 && !hit; n++) {
+      let reps = 1;
+      while (i + (reps + 1) * n <= w.length && w.slice(i, i + n).every((x, k) => norm(x) === norm(w[i + reps * n + k]))) reps++;
+      if (reps >= 3) { if (res[res.length - 1] !== "[anlaşılmıyor]") res.push("[anlaşılmıyor]"); i += reps * n; hit = true; }
+    }
+    if (!hit) { res.push(w[i]); i++; }
+  }
+  return res.join(" ");
+}
+
+// Sessizlikten bölme: 15-30 sn arasındaki en sessiz anda keser, tamamen sessiz parçaları atlar
+function segment(data){
+  const F = 320, n = Math.floor(data.length / F), e = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let a = 0; for (let k = i * F; k < (i + 1) * F; k++) a += data[k] * data[k]; e[i] = Math.sqrt(a / F); }
+  const sm = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let a = 0, c = 0; for (let k = Math.max(0, i - 2); k <= Math.min(n - 1, i + 2); k++) { a += e[k]; c++; } sm[i] = a / c; }
+  const sorted = Float32Array.from(e).sort(), thr = Math.max(sorted[Math.floor(n * 0.95)] * 0.08, 0.0005);
+  const MIN = 15 * 50, MAX = 30 * 50, out = [];
+  let start = 0;
+  while (start < n) {
+    let end;
+    if (n - start <= MAX) end = n;
+    else { let bv = Infinity; end = start + MIN; for (let j = start + MIN; j <= start + MAX; j++) if (sm[j] < bv) { bv = sm[j]; end = j; } }
+    let peak = 0; for (let j = start; j < end; j++) if (e[j] > peak) peak = e[j];
+    out.push({ start: start * F, end: end === n ? data.length : end * F, silent: peak < thr });
+    start = end;
+  }
+  return out;
+}
+
 $("go").onclick = async () => {
   const f = $("audio").files[0]; if (!f) return;
-  $("go").disabled = true; $("prog").hidden = false; $("prog").value = 0;
+  cancel = false; $("go").disabled = true; $("stop").hidden = false; $("prog").hidden = false; $("prog").value = 0;
   try {
-    if (!transcriber) {
-      $("fileStatus").textContent = "Model yükleniyor…";
-      const { pipeline } = await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2");
-      transcriber = await pipeline("automatic-speech-recognition", "Xenova/whisper-base", {
-        progress_callback: p => { if (p.status === "progress") $("prog").value = p.progress; }
-      });
-    }
-    $("prog").hidden = true;
-    $("fileStatus").textContent = "Ses çözülüyor…";
+    const choice = $("model").value;
+    if (!transcriber || transcriber.key !== choice) transcriber = await loadModel(choice);
+    $("fileStatus").textContent = "Ses çözülüyor…"; $("prog").value = 0;
     const ctx = new AudioContext({ sampleRate: 16000 });
     const buf = await ctx.decodeAudioData(await f.arrayBuffer());
     const data = buf.getChannelData(0);
-    $("fileStatus").textContent = "Yazıya çevriliyor, uzun dosyalarda biraz sürebilir…";
-    const r = await transcriber(data, { language: "turkish", task: "transcribe", chunk_length_s: 30, stride_length_s: 5 });
-    out.value = (out.value ? out.value.trimEnd() + "\n\n" : "") + r.text.trim();
-    $("fileStatus").textContent = "Bitti.";
+    const segs = segment(data);
+    const todo = segs.filter(x => !x.silent), totalLen = todo.reduce((a, x) => a + (x.end - x.start), 0) || 1;
+    const t0 = performance.now(); let doneLen = 0;
+    const useTs = $("ts").checked;
+    out.value = out.value ? out.value.trimEnd() + "\n\n" : "";
+    for (const g of todo) {
+      if (cancel) break;
+      const r = await transcriber.t(data.slice(g.start, g.end), { language: "turkish", task: "transcribe", no_repeat_ngram_size: 4, repetition_penalty: 1.1 });
+      const txt = dedupe(r.text.trim());
+      if (txt) {
+        const sec = g.start / 16000, stamp = `[${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(Math.floor(sec % 60)).padStart(2, "0")}] `;
+        out.value += useTs ? stamp + txt + "\n\n" : (out.value && !/\s$/.test(out.value) ? " " : "") + txt;
+      }
+      out.scrollTop = out.scrollHeight;
+      doneLen += g.end - g.start;
+      const el = (performance.now() - t0) / 1000, p = doneLen / totalLen;
+      $("prog").value = p * 100;
+      $("fileStatus").textContent = `%${Math.round(p * 100)} tamamlandı · geçen ${fmt(el)} · kalan yaklaşık ${fmt(el / p * (1 - p))}`;
+    }
+    $("fileStatus").textContent = cancel ? "Durduruldu. Şu ana kadarki metin duruyor." : "Bitti. İstersen aşağıdan yapay zekayla düzeltebilirsin.";
   } catch (err) {
     console.error(err);
     $("fileStatus").textContent = "Hata: " + err.message;
   }
-  $("go").disabled = false; $("prog").hidden = true;
+  $("go").disabled = false; $("stop").hidden = true; $("prog").hidden = true;
 };
 
 // --- Çıktı düğmeleri ---
-$("copy").onclick = async () => { await navigator.clipboard.writeText(out.value); $("copy").textContent = "Kopyalandı"; setTimeout(() => $("copy").textContent = "Kopyala", 1500); };
-$("save").onclick = () => {
+const copy = (el, btn, label) => async () => { await navigator.clipboard.writeText(el.value); btn.textContent = "Kopyalandı"; setTimeout(() => btn.textContent = label, 1500); };
+const save = (el, name) => () => {
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([out.value], { type: "text/plain;charset=utf-8" }));
-  a.download = "metin.txt"; a.click(); URL.revokeObjectURL(a.href);
+  a.href = URL.createObjectURL(new Blob([el.value], { type: "text/plain;charset=utf-8" }));
+  a.download = name; a.click(); URL.revokeObjectURL(a.href);
 };
+$("copy").onclick = copy(out, $("copy"), "Kopyala"); $("save").onclick = save(out, "metin.txt");
+$("copy2").onclick = copy($("fixed"), $("copy2"), "Kopyala"); $("save2").onclick = save($("fixed"), "duzeltilmis-metin.txt");
 $("clear").onclick = () => { out.value = ""; finalText = ""; };
+
+// --- Yapay zekayla düzeltme (Claude, kullanıcının kendi anahtarıyla) ---
+try { $("key").value = localStorage.getItem("ant_key") || ""; } catch {}
+const SYSTEM = `Sen bir Türkçe transkript editörüsün. Sana ses tanıma programından çıkmış ham bir metin verilecek. Görevin:
+- Noktalama, büyük/küçük harf ve paragraf bölmelerini düzelt.
+- Bağlama bakarak yanlış duyulmuş kelimeleri düzelt.
+- Dolgu sesleri ve tekrarları (ııı, eee, aynı kelimenin üst üste tekrarı) temizle.
+- Anlamı, konuşmacının söylediklerini ve ses tonunu koru. Yeni bilgi, yorum veya özet ekleme.
+- Satır başlarındaki [dd:ss] zaman damgalarını olduğu gibi koru ve paragraf yapısını bozma.
+- Bir yer bağlamdan bile anlaşılamıyorsa tahmin yürütme, o yere [anlaşılmıyor] yaz.
+Sadece düzeltilmiş metni döndür, başka açıklama yazma.`;
+
+function chunks(text, max = 6000){
+  const parts = [], lines = text.split(/\n+/);
+  let cur = "";
+  for (const l of lines) { if ((cur + "\n\n" + l).length > max && cur) { parts.push(cur); cur = l; } else cur += (cur ? "\n\n" : "") + l; }
+  if (cur) parts.push(cur);
+  return parts;
+}
+
+$("fix").onclick = async () => {
+  const key = $("key").value.trim(), text = out.value.trim();
+  if (!key) { $("fixStatus").textContent = "API anahtarını gir."; return; }
+  if (!text) { $("fixStatus").textContent = "Önce ham metin olmalı."; return; }
+  try { localStorage.setItem("ant_key", key); } catch {}
+  $("fix").disabled = true; $("fixed").value = "";
+  const parts = chunks(text);
+  try {
+    for (let i = 0; i < parts.length; i++) {
+      $("fixStatus").textContent = `Düzeltiliyor: ${i + 1} / ${parts.length}`;
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-sonnet-5-5", max_tokens: 8000, system: SYSTEM + ($("ctx").value.trim() ? "\n\nKaydın konusu (kullanıcının notu): " + $("ctx").value.trim() + "\nBu bilgiyi yanlış duyulmuş özel isim, terim ve konu kelimelerini düzeltmek için kullan. Notta olmayan bilgiyi metne ekleme." : ""), messages: [{ role: "user", content: parts[i] }] })
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error?.message || res.status);
+      $("fixed").value += (i ? "\n\n" : "") + j.content.map(c => c.text || "").join("").trim();
+    }
+    $("fixStatus").textContent = "Bitti.";
+  } catch (err) {
+    $("fixStatus").textContent = "Hata: " + err.message;
+  }
+  $("fix").disabled = false;
+};
 </script>
 </body>
 </html>
